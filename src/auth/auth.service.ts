@@ -14,14 +14,13 @@ export class AuthService {
         private prisma: PrismaService,
         private jwt: JwtService,
         private config: ConfigService
-    ) {
-
-    }
+    ) { }
 
     async signup(dto: AuthDto) {
         //generate the password hash
         const hash = await argon.hash(dto.password);
 
+        console.log("oda ets printed")
         try {
             //save the user in the db
             const user = await this.prisma.user.create({
@@ -38,10 +37,11 @@ export class AuthService {
                 // }
                 //or
             })
-            delete user.hash;
+            // delete user.hash;
 
             //return the saved user
             return user;
+            return this.signToken(user.id, user.email)
 
         } catch (error) {
             if (error instanceof PrismaClientKnownRequestError) {
@@ -74,13 +74,13 @@ export class AuthService {
                 'Credentials incorrect');
 
         delete user.hash;
-        //send back the user
-        return user
 
-        return { msg: "this is signin" }
+        //send back the user
+        return this.signToken(user.id, user.email)
+
     }
 
-    async signToken(userId: number, email: string): Promise<string> { // this means that we are returning a promise here
+    async signToken(userId: number, email: string): Promise<{ access_token: string }> { // this means that we are returning a promise here
         const payload = {
             sub: userId,
             email
@@ -88,9 +88,13 @@ export class AuthService {
 
         const secret = this.config.get('JWT_SECRET')
 
-        return this.jwt.signAsync(payload, {
+        const token = await this.jwt.signAsync(payload, {
             expiresIn: '48h',
             secret: secret
         })
+
+        return {
+            access_token: token
+        }
     }
 }
